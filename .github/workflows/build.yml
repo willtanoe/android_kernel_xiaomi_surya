@@ -5,6 +5,12 @@ on:
     branches:
       - avalanche
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a GitHub release after both builds pass
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   prepare:
@@ -49,7 +55,7 @@ jobs:
         path: ${{ env.ARTIFACT }}/*
 
   create_release:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
     needs: [prepare, build_kernel]
     runs-on: ubuntu-latest
     permissions:
