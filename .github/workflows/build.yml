@@ -2,6 +2,8 @@ name: Build Kernel and Release
 
 on:
   push:
+    branches:
+      - avalanche
   workflow_dispatch:
 
 jobs:
@@ -21,18 +23,15 @@ jobs:
     strategy:
       matrix:
         include:
-          - variant: "staging"
-            root: "KSU"
-          - variant: "staging"
-            root: "NoKSU"
+          - root: "KSU"
+          - root: "NoKSU"
 
     steps:
     - name: Checkout Source
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
     - name: Set environment
       run: |
-        echo "VARIANT=${{ matrix.variant }}" >> $GITHUB_ENV
         echo "ROOT=${{ matrix.root }}" >> $GITHUB_ENV
         echo "DATE=${{ needs.prepare.outputs.DATE }}" >> $GITHUB_ENV
         echo "ARTIFACT=$GITHUB_WORKSPACE/artifact" >> $GITHUB_ENV
@@ -44,12 +43,13 @@ jobs:
         chmod +x build.sh && ./build.sh ${{ env.ROOT }} ${{ env.DATE }} ${{ env.ARTIFACT }}
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
-        name: Avalanche-${{ env.VARIANT }}-${{ env.ROOT }}-${{ env.DATE }}
+        name: Avalanche-${{ env.ROOT }}-${{ env.DATE }}
         path: ${{ env.ARTIFACT }}/*
 
   create_release:
+    if: github.event_name == 'workflow_dispatch'
     needs: [prepare, build_kernel]
     runs-on: ubuntu-latest
     permissions:
@@ -57,59 +57,53 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Setup git authentication
+      - name: Configure release identity
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Cilok-LAB/android_kernel_xiaomi_surya
 
       - name: Set DATE and TAG
         run: |
-          echo "TAG=${{ needs.prepare.outputs.DATE }}" >> $GITHUB_ENV
+          echo "TAG=Avalanche-${{ needs.prepare.outputs.DATE }}-${GITHUB_SHA:0:8}" >> $GITHUB_ENV
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: artifact
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: sha256sum artifact/*.zip > artifact/SHA256SUMS
 
       - name: Create Git tag
         run: |
-          git tag -a "$TAG" -m "ilysm tirr"
+          git tag -a "$TAG" -m "Avalanche build ${GITHUB_SHA}"
           git push origin "$TAG"
 
       - name: Upload artifacts to release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.TAG }}
-          files: artifact/**
+          files: artifact/*
           body: |
-            Device Target: POCO X3 NFC (surya)
-            Kernel Source: https://github.com/willtanoe/android_kernel_xiaomi_surya.git
-            Kernel Version: 4.14.357
-            Clang Version: AOSP Clang v21.0.0
+            ## Avalanche Kernel
 
-            ### Changelog:
-            - https://github.com/willtanoe/android_kernel_xiaomi_surya/commits/avalanche
+            - Device target: POCO X3 NFC (`surya`)
+            - Source commit: `${{ github.sha }}`
+            - Kernel: Linux 4.14.357 OpenELA
+            - Toolchain: AOSP Clang 21.0.0 (build 13289611)
+            - Variants: KernelSU and NoKSU
 
-            ### Notes
-            *Flash carefully. Do not interrupt the synchronization.*
-            *MIUI/HyperOS and AOSP/A support*
-            *Android 11-16 support*
+            ### Changes
 
-            ### Flash this module if you using ksu variant:
-            - https://github.com/backslashxx/mountify/releases/tag/203
+            https://github.com/willtanoe/android_kernel_xiaomi_surya/commits/avalanche
 
-            ### Recommend Manager (Choose one!):
-            - Official KernelSU: https://t.me/CilokG05/492
-            - KernelSU-Next: https://t.me/CilokG05/489
-            - xxKernelSU: https://t.me/CilokG05/491
-            - KowSU: https://t.me/CilokG05/493
-            - MamboSU: https://t.me/CilokG05/494
-            - Wild KSU: https://t.me/CilokG05/497
-            - Rsuntk KSU: https://t.me/CilokG05/490
-            - ReSukiSU: https://t.me/CilokG05/495
-            - SukiSU-Ultra: https://t.me/CilokG05/496
+            ### Validation
+
+            Both variants passed compile, configuration, packaging, and ZIP integrity checks. Runtime device testing is still required; successful compilation does not guarantee ROM or hardware compatibility.
+
+            Verify downloads against the attached `SHA256SUMS` file. Keep a known recovery path and a backup of boot-related partitions before flashing.

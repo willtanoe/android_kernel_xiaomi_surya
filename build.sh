@@ -8,8 +8,8 @@ readonly DEFCONFIG="arch/arm64/configs/surya_defconfig"
 readonly CLANG_ARCHIVE="clang-13289611-linux-x86.tar.xz"
 readonly CLANG_URL="https://github.com/Impqxr/aosp_clang_ci/releases/download/13289611/${CLANG_ARCHIVE}"
 readonly CLANG_SHA256="0a1fbf7f990122a63a2f8b9d6ddce458bebfb1bbe1c9efe8f1b58a2a3814ae7c"
+readonly CLANG_BINARY_SHA256="2dc97e5225642abce70b8b077f7fae70b8006d53d9659008b5eb916814bf2ceb"
 readonly ANYKERNEL_URL="https://github.com/kylieeXD/AK3-Surya.git"
-readonly ANYKERNEL_BRANCH="staging"
 readonly ANYKERNEL_COMMIT="b5ce992ec2e2f85eaa3b0724fd6b63d8e4dc1352"
 
 ROOT_VARIANT="${1:-}"
@@ -32,6 +32,7 @@ readonly OUTPUT_ZIP="${ARTIFACT_DIR}/${KERNEL_NAME}"
 
 setup_toolchain() {
 	if [[ -x clang/bin/clang ]]; then
+		printf '%s  %s\n' "${CLANG_BINARY_SHA256}" clang/bin/clang | sha256sum --check --strict
 		return
 	fi
 
@@ -47,6 +48,7 @@ setup_toolchain() {
 		cp -a clang.extract/. clang/
 	fi
 	rm -rf clang.extract
+	printf '%s  %s\n' "${CLANG_BINARY_SHA256}" clang/bin/clang | sha256sum --check --strict
 }
 
 configure_kernel() {
@@ -80,6 +82,24 @@ compile_kernel() {
 		CROSS_COMPILE_COMPAT=arm-linux-gnueabi- LLVM=1 LLVM_IAS=1
 }
 
+validate_variant() {
+	if [[ "${ROOT_VARIANT}" == "KSU" ]]; then
+		grep -qx 'CONFIG_KSU=y' out/.config || {
+			echo "KSU validation failed: CONFIG_KSU is not enabled" >&2
+			exit 1
+		}
+	else
+		grep -qx '# CONFIG_KSU is not set' out/.config || {
+			echo "NoKSU validation failed: CONFIG_KSU is not disabled" >&2
+			exit 1
+		}
+		if grep -Eq '[[:space:]](ksu_|kernelsu_|apply_kernelsu_)' out/System.map; then
+			echo "NoKSU validation failed: KernelSU symbols are present" >&2
+			exit 1
+		fi
+	fi
+}
+
 package_kernel() {
 	local file
 	for file in Image Image.gz dtb.img dtbo.img; do
@@ -90,12 +110,11 @@ package_kernel() {
 	done
 
 	rm -rf out/anykernel
-	git clone --quiet --filter=blob:none --single-branch \
-		--branch "${ANYKERNEL_BRANCH}" "${ANYKERNEL_URL}" out/anykernel
-	if [[ "$(git -C out/anykernel rev-parse HEAD)" != "${ANYKERNEL_COMMIT}" ]]; then
-		echo "AnyKernel branch moved; update the pinned commit after review" >&2
-		exit 1
-	fi
+	mkdir -p out/anykernel
+	git -C out/anykernel init --quiet
+	git -C out/anykernel remote add origin "${ANYKERNEL_URL}"
+	git -C out/anykernel fetch --quiet --depth=1 origin "${ANYKERNEL_COMMIT}"
+	git -C out/anykernel checkout --quiet --detach FETCH_HEAD
 
 	cp "${KERNEL_PATH}/dtb.img" out/anykernel/kernels/
 	cp "${KERNEL_PATH}/dtbo.img" out/anykernel/kernels/
@@ -111,6 +130,7 @@ package_kernel() {
 main() {
 	setup_toolchain
 	compile_kernel
+	validate_variant
 	package_kernel
 
 	sha256sum "${OUTPUT_ZIP}"
