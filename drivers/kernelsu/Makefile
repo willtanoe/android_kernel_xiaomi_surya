@@ -86,7 +86,7 @@ CFLAGS_ksu.o += -Wno-implicit-function-declaration -Wno-strict-prototypes -Wno-i
 CFLAGS_ksu.o += -Wno-declaration-after-statement -Wno-unused-function -Wno-format -Wno-incompatible-pointer-types
 CFLAGS_ksu.o += -Wno-unused-variable -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast
 
-# so we can see stack use atleast, as we disable all stack safety here
+# Keep visibility into excessive stack use in the KernelSU unity object.
 CFLAGS_ksu.o += $(call cc-option, -Wframe-larger-than=1024)
 
 # to make sure we can use builtins
@@ -99,8 +99,7 @@ CFLAGS_ksu.o += -g0 -fno-unwind-tables -fno-asynchronous-unwind-tables -fomit-fr
 CFLAGS_REMOVE_ksu.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_ksu.o += -pg
 
-# if cflags can be macro'd, this will be called 'TRUST_ME'
-CFLAGS_ksu.o += -fno-stack-protector -fno-stack-check
+CFLAGS_ksu.o += -fno-stack-check
 CFLAGS_REMOVE_ksu.o += -fsanitize=shadow-call-stack
 endif # CONFIG_KSU_DEBUG
 

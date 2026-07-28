@@ -32,9 +32,9 @@ static long is_libadbroot_ok()
 			pr_err("access libadbroot.so failed: %ld, skip adb root\n", ret);
 		}
 	} else {
+		path_put(&path);
 		ret = 1;
 	}
-	path_put(&path);
 	return ret;
 }
 

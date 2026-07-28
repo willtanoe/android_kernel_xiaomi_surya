@@ -13,20 +13,35 @@ static struct non_root_profile default_non_root_profile;
 static int allow_list_arr[PAGE_SIZE / sizeof(int)] __read_mostly __aligned(PAGE_SIZE);
 static int allow_list_pointer __read_mostly = 0;
 
+static bool uid_is_in_arr(uid_t uid)
+{
+	int i;
+
+	for (i = 0; i < allow_list_pointer; i++) {
+		if (allow_list_arr[i] == uid)
+			return true;
+	}
+
+	return false;
+}
+
 static void remove_uid_from_arr(uid_t uid)
 {
 	int i;
-	for (i = 0; i < allow_list_pointer; i++) {
+
+	for (i = 0; i < allow_list_pointer;) {
 		if (allow_list_arr[i] == uid) {
 			int remaining = allow_list_pointer - 1 - i;
+
 			if (remaining > 0) {
 				memmove(&allow_list_arr[i], &allow_list_arr[i + 1],
 						remaining * sizeof(allow_list_arr[0]));
 			}
 			allow_list_pointer--;
 			allow_list_arr[allow_list_pointer] = -1;
-			return;
+			continue;
 		}
+		i++;
 	}
 }
 
@@ -235,7 +250,9 @@ out:
 			 * 1024 apps with uid higher than BITMAP_UID_MAX
 			 * registered to request superuser?
 			 */
-			if (allow_list_pointer >= ARRAY_SIZE(allow_list_arr)) {
+			if (uid_is_in_arr(profile->current_uid)) {
+				goto out_unlock;
+			} else if (allow_list_pointer >= ARRAY_SIZE(allow_list_arr)) {
 				pr_err("too many apps registered\n");
 				WARN_ON(1);
 			} else {
@@ -405,7 +422,12 @@ static void ksu_persistent_allow_list_fn()
 		pr_info("save allow list, name: %s uid :%d, allow: %d\n",
 				p->profile.key, p->profile.current_uid, p->profile.allow_su);
 
-		kernel_write(fp, &p->profile, sizeof(p->profile), &off);
+		if (kernel_write(fp, &p->profile, sizeof(p->profile), &off) !=
+			sizeof(p->profile)) {
+			pr_err("save_allow_list write profile failed: %s\n",
+				p->profile.key);
+			goto close_file;
+		}
 	}
 
 close_file:
@@ -474,12 +496,20 @@ void ksu_load_allow_list()
 	pr_info("allowlist version: %d\n", version);
 
 	while (true) {
-		struct app_profile profile;
+		struct app_profile profile = { 0 };
 
 		ret = kernel_read(fp, &profile, sizeof(profile), &off);
 
-		if (ret <= 0) {
-			pr_info("load_allow_list read err: %zd\n", ret);
+		if (ret == 0)
+			break;
+
+		if (ret < 0) {
+			pr_err("load_allow_list read failed: %zd\n", ret);
+			break;
+		}
+
+		if (ret != sizeof(profile)) {
+			pr_err("load_allow_list rejected truncated profile: %zd\n", ret);
 			break;
 		}
 

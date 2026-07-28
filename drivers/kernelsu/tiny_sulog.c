@@ -53,7 +53,7 @@ static void write_sulog(uint8_t sym)
 	if (!sulog_buf_ptr)
 		return;
 
-	unsigned int offset = sulog_index_next * sizeof(struct sulog_entry);
+	unsigned int offset;
 	struct sulog_entry entry = {0};
 	
 	kuid_t current_uid = current_uid();
@@ -67,19 +67,21 @@ static void write_sulog(uint8_t sym)
 	// however this still has to be locked for exclusion as theres a reader
 
 	spin_lock(&sulog_lock);
+	offset = sulog_index_next * sizeof(struct sulog_entry);
 
 #ifdef CONFIG_64BIT
 	*(volatile uint64_t *)(sulog_buf_ptr + offset) = *(uint64_t *)&entry;
 #else
 	__builtin_memcpy(sulog_buf_ptr + offset, &entry, sizeof(entry));
 #endif
-	spin_unlock(&sulog_lock);
 
 	// move ptr for next iteration
 	sulog_index_next = sulog_index_next + 1;
 
 	if (sulog_index_next >= SULOG_ENTRY_MAX)
 		sulog_index_next = 0;
+
+	spin_unlock(&sulog_lock);
 }
 
 struct sulog_entry_rcv_ptr {

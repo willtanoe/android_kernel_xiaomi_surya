@@ -269,6 +269,11 @@ static void throne_tracker_fn(bool prune_only)
 	};
 
 skip_retry:
+	if (!fp) {
+		pr_err("%s: open " SYSTEM_PACKAGES_LIST_PATH " timed out\n", __func__);
+		return;
+	}
+
 	if (IS_ERR(fp)) {
 		pr_err("%s: open " SYSTEM_PACKAGES_LIST_PATH " failed: %ld\n", __func__, PTR_ERR(fp));
 		return;
