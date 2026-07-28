@@ -377,9 +377,9 @@ else
 HOSTCC	= gcc
 HOSTCXX	= g++
 endif
-HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 \
+HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 \
 		-fomit-frame-pointer -std=gnu89 $(HOST_LFS_CFLAGS)
-HOSTCXXFLAGS := -O3 $(HOST_LFS_CFLAGS)
+HOSTCXXFLAGS := -O2 $(HOST_LFS_CFLAGS)
 HOSTLDFLAGS  := $(HOST_LFS_LDFLAGS)
 HOST_LOADLIBES := $(HOST_LFS_LIBS)
 
@@ -738,8 +738,8 @@ LLVM_AR		:= llvm-ar
 LLVM_NM		:= llvm-nm
 export LLVM_AR LLVM_NM
 
-# Set O3 optimization level for LTO
-LDFLAGS		+= --plugin-opt=O3
+# Keep LTO at the kernel's standard optimization level
+LDFLAGS		+= --plugin-opt=O2
 
 endif
 
@@ -759,25 +759,8 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, attribute-alias)
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS   += -Os
-KBUILD_AFLAGS   += -Os
-KBUILD_LDFLAGS  += -Os
-else
-ifeq ($(cc-name),clang)
-KBUILD_CFLAGS   += -mllvm -hot-cold-split=true
-KBUILD_CFLAGS   += -mcpu=cortex-a55 -mtune=cortex-a55
-KBUILD_CFLAGS   += -O3 -march=armv8.2-a+lse+crypto+dotprod+crc --cuda-path=/dev/null
-KBUILD_AFLAGS   += -O3 -march=armv8.2-a+lse+crypto+dotprod+crc
-KBUILD_LDFLAGS  += -O3 --plugin-opt=O3
 else
 KBUILD_CFLAGS   += -O2
-KBUILD_AFLAGS   += -O2
-KBUILD_LDFLAGS  += -O2
-ifdef CONFIG_INLINE_OPTIMIZATION
-KBUILD_CFLAGS	+= -mllvm -inline-threshold=2500
-KBUILD_CFLAGS	+= -mllvm -inlinehint-threshold=2000
-KBUILD_CFLAGS	+= -mllvm -unroll-threshold=1200
-endif
-endif
 endif
 
 ifdef CONFIG_MINIMAL_TRACING_FOR_IORAP
@@ -870,9 +853,9 @@ endif
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
 
 ifdef CONFIG_LTO_CLANG
-KBUILD_LDFLAGS += -O3 --lto-O3
+KBUILD_LDFLAGS += -O2 --lto-O2
 else
-KBUILD_LDFLAGS += -O3
+KBUILD_LDFLAGS += -O2
 endif
 
 ifndef CONFIG_DEBUG_INFO

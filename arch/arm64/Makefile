@@ -103,7 +103,7 @@ KBUILD_AFLAGS	+= $(lseinstr) $(brokengasinst) $(vdso32)
 KBUILD_CFLAGS	+= $(call cc-option,-mabi=lp64)
 KBUILD_AFLAGS	+= $(call cc-option,-mabi=lp64)
 
-KBUILD_CFLAGS	+= -mcpu=cortex-a76
+KBUILD_CFLAGS	+= -march=armv8.2-a
 
 KBUILD_CFLAGS	+= $(call cc-ifversion, -ge, 0500, -DCONFIG_ARCH_SUPPORTS_INT128)
 
