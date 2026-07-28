@@ -684,12 +684,13 @@ static int prefer_high_cap_write(struct cgroup_subsys_state *css,
 	return 0;
 }
 
-#ifdef CONFIG_STUNE_ASSIST
 static int boost_write_wrapper(struct cgroup_subsys_state *css,
 			       struct cftype *cft, s64 boost)
 {
+#ifdef CONFIG_STUNE_ASSIST
 	if (task_is_blocklisted(current))
 		return 0;
+#endif
 
 	return boost_write(css, cft, boost);
 }
@@ -697,12 +698,13 @@ static int boost_write_wrapper(struct cgroup_subsys_state *css,
 static int prefer_idle_write_wrapper(struct cgroup_subsys_state *css,
 				     struct cftype *cft, u64 prefer_idle)
 {
+#ifdef CONFIG_STUNE_ASSIST
 	if (task_is_blocklisted(current))
 		return 0;
+#endif
 
 	return prefer_idle_write(css, cft, prefer_idle);
 }
-#endif
 
 static struct cftype files[] = {
 #ifdef CONFIG_SCHED_WALT

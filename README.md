@@ -69,7 +69,10 @@ describes real compiled capabilities; it does not imply a benchmark result.
 
 - Preemptible 250 Hz kernel configuration.
 - TEO CPU-idle governor.
-- Performance, powersave, userspace, and schedutil CPU-frequency governors.
+- Schedutil as the default CPU-frequency policy, with performance, powersave,
+  and userspace governors still available when explicitly requested.
+- Android cpuset, schedtune, and Power HAL policy is honored instead of being
+  silently replaced by fixed in-kernel masks or permanent screen-on boosts.
 - Qualcomm devfreq, bandwidth, memory-latency, and Adreno power-management
   support inherited from the device tree.
 - Kernel filesystem synchronization retained before suspend for a clear data
