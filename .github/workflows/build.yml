@@ -50,7 +50,7 @@ jobs:
         chmod +x build.sh && ./build.sh ${{ env.ROOT }} ${{ env.DATE }} ${{ env.ARTIFACT }}
 
     - name: Upload artifact
-      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
       with:
         name: Avalanche-${{ env.ROOT }}-${{ env.DATE }}
         path: ${{ env.ARTIFACT }}/*
@@ -76,7 +76,7 @@ jobs:
           echo "TAG=Avalanche-${{ needs.prepare.outputs.DATE }}-${GITHUB_SHA:0:8}" >> $GITHUB_ENV
 
       - name: Download all artifacts
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
           path: artifact
           merge-multiple: true
