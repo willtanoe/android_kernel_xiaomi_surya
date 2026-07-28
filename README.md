@@ -73,8 +73,11 @@ describes real compiled capabilities; it does not imply a benchmark result.
   and userspace governors still available when explicitly requested.
 - Android cpuset, schedtune, and Power HAL policy is honored instead of being
   silently replaced by fixed in-kernel masks or permanent screen-on boosts.
+- IRQ affinity remains under platform and userspace control instead of a
+  second periodic kernel balancer with hard-coded CPU exclusions.
 - Qualcomm devfreq, bandwidth, memory-latency, and Adreno power-management
-  support inherited from the device tree.
+  support inherited from the device tree, including its GPU PM-QoS latency
+  contracts and writable idle timeout.
 - Kernel filesystem synchronization retained before suspend for a clear data
   durability boundary.
 - Production thermal emulation disabled so userspace cannot substitute fake
@@ -88,13 +91,17 @@ describes real compiled capabilities; it does not imply a benchmark result.
 - Filesystem encryption, inline encryption, fs-verity, dm-crypt, and dm-verity
   with forward-error correction.
 - UFS and block-layer inline-encryption support.
+- CFQ as the default single-queue I/O scheduler, without dormant custom
+  schedulers that are not selected by the device configuration.
 - ZRAM with LZ4 as the configured default compressor.
+- Standard reclaim behavior without imported Oplus memory-policy overrides.
 
 ### Networking
 
 - In-kernel WireGuard support.
-- Westwood, BBR, and BBRplus TCP congestion-control implementations.
-- BBRplus and `fq_codel` selected by the current defconfig.
+- CUBIC as the default TCP congestion controller, with Westwood and standard
+  BBR available for explicit selection.
+- `fq_codel` as the default queueing discipline.
 - TCP SYN cookies for listen-queue overload protection.
 - Android networking, tunneling, filtering, and tethering dependencies from the
   vendor kernel base.
@@ -106,6 +113,8 @@ describes real compiled capabilities; it does not imply a benchmark result.
 - Randomized and hardened SLUB freelists.
 - Strict kernel read/write/execute permissions and kernel address randomization.
 - Hardened usercopy, seccomp filtering, and SELinux as the primary LSM.
+- Kernel BUG and WARN reporting retained for field diagnostics, with build-time
+  warnings for stack frames larger than 2048 bytes.
 - KernelSU fixes for invalid failure-path object use, package-list open failure,
   high-UID allowlist revocation, partial persisted profiles, and concurrent SU
   log writes.
