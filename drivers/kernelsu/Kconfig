@@ -5,7 +5,7 @@ config KSU
 	depends on !CPU_BIG_ENDIAN
 	depends on SECURITY_SELINUX
 	select SECCOMP
-	default y
+	default n
 	help
 	  Enable kernel-level root privileges on Android System.
 
@@ -19,7 +19,7 @@ config KSU_EXTRAS
 
 config KSU_KPROBES_KSUD
 	bool "Enable dynamic kprobes for early boot hooks"
-	depends on KPROBES && KRETPROBES
+	depends on KSU && KPROBES && KRETPROBES
 	default n
 	help
 	  Use dynamic hooks via kprobes for functions only
@@ -28,7 +28,7 @@ config KSU_KPROBES_KSUD
 
 config KSU_TAMPER_SYSCALL_TABLE
 	bool "EXPERIMENTAL: tamper sys_call_table for sucompat + sys_reboot"
-	depends on (ARM || ARM64) && !CFI_CLANG && !CFI
+	depends on KSU && (ARM || ARM64) && !CFI_CLANG && !CFI
 	default y
 	help
 	  EXPERIMENTAL: use syscall table hijacking method demonstrated on zx2c4's
@@ -59,6 +59,7 @@ config KSU_DEBUG
 
 config KSU_THRONE_TRACKER_ALWAYS_THREADED
 	bool "Always run throne tracker in a kthread"
+	depends on KSU
 	default n
 	help
 	  Enable this option to run throne tracker in a kthread for the first
