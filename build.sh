@@ -1,111 +1,122 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+
 SECONDS=0
-set -eo pipefail
 
-# Set kernel path
-KERNEL_PATH="out/arch/arm64/boot"
+readonly KERNEL_PATH="out/arch/arm64/boot"
+readonly DEFCONFIG="arch/arm64/configs/surya_defconfig"
+readonly CLANG_ARCHIVE="clang-13289611-linux-x86.tar.xz"
+readonly CLANG_URL="https://github.com/Impqxr/aosp_clang_ci/releases/download/13289611/${CLANG_ARCHIVE}"
+readonly CLANG_SHA256="0a1fbf7f990122a63a2f8b9d6ddce458bebfb1bbe1c9efe8f1b58a2a3814ae7c"
+readonly ANYKERNEL_URL="https://github.com/kylieeXD/AK3-Surya.git"
+readonly ANYKERNEL_BRANCH="staging"
+readonly ANYKERNEL_COMMIT="b5ce992ec2e2f85eaa3b0724fd6b63d8e4dc1352"
 
-# Set kernel file
-OBJ="${KERNEL_PATH}/Image"
-GZIP="${KERNEL_PATH}/Image.gz"
+ROOT_VARIANT="${1:-}"
+BUILD_DATE="${2:-$(TZ=Asia/Jakarta date +%Y%m%d%H%M)}"
+ARTIFACT_DIR="${3:-${PWD}/artifacts}"
+BUILD_JOBS="${BUILD_JOBS:-$(nproc --all)}"
 
-# Set dts file
-DTB="${KERNEL_PATH}/dtb.img"
-DTBO="${KERNEL_PATH}/dtbo.img"
-
-# Set date kernel
-if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-	DATE="$2"
-else
-	DATE="$(TZ=Asia/Jakarta date +%Y%m%d%H%M)"
-fi
-
-# Set defconfig path
-DEFCONFIG="arch/arm64/configs/surya_defconfig"
-
-# Set kernel name
-KERNEL_NAME="rethinking-$1-$DATE.zip"
-
-# Simple sed function
-set_cfg() {
-	local key="$1"; local val="$2"
-	if [ "$val" = "y" ]; then sed -i "s/^# $key is not set/$key=y/; s/^$key=.*/$key=y/" "$DEFCONFIG"
-	else sed -i "s/^$key=.*/# $key is not set/" "$DEFCONFIG"; fi
-}
-
-# Setup Root
-case "$1" in
-	KSU)
-		set_cfg CONFIG_KSU y ;;
-	NoKSU)
-		set_cfg CONFIG_KSU n ;;
-	*) echo "Unknown root: $1"; exit 1 ;;
+case "${ROOT_VARIANT}" in
+	KSU | NoKSU) ;;
+	*)
+		echo "Usage: $0 <KSU|NoKSU> [build-date] [artifact-directory]" >&2
+		exit 2
+		;;
 esac
 
-# Kernel Compiler
-function KERNEL_COMPILE() {
-	# Set environment variables
-	export USE_CCACHE=1
-	export KBUILD_BUILD_HOST=builder
-	export KBUILD_BUILD_USER=khayloaf
+mkdir -p "${ARTIFACT_DIR}"
+ARTIFACT_DIR="$(realpath "${ARTIFACT_DIR}")"
+readonly KERNEL_NAME="rethinking-${ROOT_VARIANT}-${BUILD_DATE}.zip"
+readonly OUTPUT_ZIP="${ARTIFACT_DIR}/${KERNEL_NAME}"
 
-	# Create output directory and do a clean build
-	rm -rf out anykernel && mkdir -p out
-
-	# Download clang if not present
-	if [[ ! -d clang ]]; then mkdir -p clang
-		wget https://github.com/Impqxr/aosp_clang_ci/releases/download/13289611/clang-13289611-linux-x86.tar.xz -O clang.tar.gz
-		tar -xf clang.tar.gz -C clang && if [ -d clang/clang-* ]; then mv clang/clang-*/* clang; fi && rm -rf clang.tar.gz
+setup_toolchain() {
+	if [[ -x clang/bin/clang ]]; then
+		return
 	fi
 
-	# Add clang bin directory to PATH
-	export PATH="${PWD}/clang/bin:$PATH"
+	wget -c "${CLANG_URL}" -O "${CLANG_ARCHIVE}"
+	printf '%s  %s\n' "${CLANG_SHA256}" "${CLANG_ARCHIVE}" | sha256sum --check --strict
 
-	# Make the config
-	make O=out ARCH=arm64 surya_defconfig
-
-	# Build the kernel with clang
-	make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld AS=llvm-as AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_COMPAT=arm-linux-gnueabi- LLVM=1 LLVM_IAS=1
+	rm -rf clang.extract
+	mkdir -p clang clang.extract
+	tar -xf "${CLANG_ARCHIVE}" -C clang.extract
+	if compgen -G 'clang.extract/clang-*' >/dev/null; then
+		cp -a clang.extract/clang-*/. clang/
+	else
+		cp -a clang.extract/. clang/
+	fi
+	rm -rf clang.extract
 }
 
-# Kernel Results
-function KERNEL_RESULT() {
-	# Run compiler
-	KERNEL_COMPILE
+configure_kernel() {
+	rm -rf out
+	mkdir -p out
 
-	# Check if build is successful
-	if [ ! -f "$OBJ" ] || [ ! -f "$GZIP" ] || [ ! -f "$DTB" ] || [ ! -f "$DTBO" ]; then
+	make O=out ARCH=arm64 surya_defconfig
+	if [[ "${ROOT_VARIANT}" == "KSU" ]]; then
+		scripts/config --file out/.config --enable KSU
+	else
+		scripts/config --file out/.config --disable KSU
+	fi
+	make O=out ARCH=arm64 olddefconfig
+}
+
+compile_kernel() {
+	export PATH="${PWD}/clang/bin:${PATH}"
+	export CCACHE_DIR="${CCACHE_DIR:-${HOME}/.cache/ccache}"
+	export KBUILD_BUILD_HOST="builder"
+	export KBUILD_BUILD_USER="willtanoe"
+	export KBUILD_BUILD_VERSION=1
+	export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+	export KBUILD_BUILD_TIMESTAMP="$(git show -s --format=%cD HEAD)"
+
+	ccache --max-size "${CCACHE_MAXSIZE:-10G}"
+	configure_kernel
+	make -j"${BUILD_JOBS}" O=out ARCH=arm64 \
+		CC="ccache clang" LD=ld.lld AS=llvm-as AR=llvm-ar NM=llvm-nm \
+		OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
+		CROSS_COMPILE=aarch64-linux-gnu- \
+		CROSS_COMPILE_COMPAT=arm-linux-gnueabi- LLVM=1 LLVM_IAS=1
+}
+
+package_kernel() {
+	local file
+	for file in Image Image.gz dtb.img dtbo.img; do
+		if [[ ! -f "${KERNEL_PATH}/${file}" ]]; then
+			echo "Missing kernel output: ${KERNEL_PATH}/${file}" >&2
+			exit 1
+		fi
+	done
+
+	rm -rf out/anykernel
+	git clone --quiet --filter=blob:none --single-branch \
+		--branch "${ANYKERNEL_BRANCH}" "${ANYKERNEL_URL}" out/anykernel
+	if [[ "$(git -C out/anykernel rev-parse HEAD)" != "${ANYKERNEL_COMMIT}" ]]; then
+		echo "AnyKernel branch moved; update the pinned commit after review" >&2
 		exit 1
 	fi
 
-	# Create anykernel
-	rm -rf anykernel
-	git clone https://github.com/kylieeXD/AK3-Surya.git -b staging anykernel
-
-	# Copying image
-	cp "$DTB" "anykernel/kernels/"
-	cp "$DTBO" "anykernel/kernels/"
-	cp "$GZIP" "anykernel/kernels/"
-
-	# Created zip kernel
-	cd anykernel && zip -r9 "$2" *
-
-	# Add kernel to artifact
-	if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
-		cp "$2" "$3"
-	else
-		RESPONSE=$(curl -s -F "file=@$2" "https://store1.gofile.io/contents/uploadfile" || curl -s -F "file=@$2" "https://store2.gofile.io/contents/uploadfile")
-		echo -e "\nDownload link: $(echo "$RESPONSE" | grep -oP '"downloadPage":"\K[^"]+')"
-	fi
-
-	# Back to kernel root
-	cd - >/dev/null
+	cp "${KERNEL_PATH}/dtb.img" out/anykernel/kernels/
+	cp "${KERNEL_PATH}/dtbo.img" out/anykernel/kernels/
+	cp "${KERNEL_PATH}/Image.gz" out/anykernel/kernels/
+	rm -rf out/anykernel/.git
+	rm -f "${OUTPUT_ZIP}"
+	(
+		cd out/anykernel
+		zip -qr9 "${OUTPUT_ZIP}" .
+	)
 }
 
-# Run all function
-rm -rf compile.log
-KERNEL_RESULT "$1" "$KERNEL_NAME" "$3" | tee compile.log
+main() {
+	setup_toolchain
+	compile_kernel
+	package_kernel
 
-# Done bang
-echo -e "Completed in $((SECONDS / 60)) minute(s) and $((SECONDS % 60)) second(s) !\n"
-git restore "$DEFCONFIG"
+	sha256sum "${OUTPUT_ZIP}"
+	ccache --show-stats
+	echo "Completed in $((SECONDS / 60)) minute(s) and $((SECONDS % 60)) second(s)"
+}
+
+rm -f compile.log
+main 2>&1 | tee compile.log

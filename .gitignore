@@ -130,6 +130,7 @@ out/
 
 # Ignore personal files
 android/
+/compile.log
 log.txt
 *.zip
 tc/
