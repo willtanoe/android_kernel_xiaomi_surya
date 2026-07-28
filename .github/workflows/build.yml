@@ -46,7 +46,7 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: rethinking-${{ env.VARIANT }}-${{ env.ROOT }}-${{ env.DATE }}
+        name: Avalanche-${{ env.VARIANT }}-${{ env.ROOT }}-${{ env.DATE }}
         path: ${{ env.ARTIFACT }}/*
 
   create_release:
@@ -88,12 +88,12 @@ jobs:
           files: artifact/**
           body: |
             Device Target: POCO X3 NFC (surya)
-            Kernel Source: https://github.com/Cilok-LAB/android_kernel_xiaomi_surya.git
+            Kernel Source: https://github.com/willtanoe/android_kernel_xiaomi_surya.git
             Kernel Version: 4.14.357
             Clang Version: AOSP Clang v21.0.0
 
             ### Changelog:
-            - https://github.com/Cilok-LAB/android_kernel_xiaomi_surya/commits/rethinking
+            - https://github.com/willtanoe/android_kernel_xiaomi_surya/commits/avalanche
 
             ### Notes
             *Flash carefully. Do not interrupt the synchronization.*

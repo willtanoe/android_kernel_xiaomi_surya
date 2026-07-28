@@ -27,7 +27,7 @@ esac
 
 mkdir -p "${ARTIFACT_DIR}"
 ARTIFACT_DIR="$(realpath "${ARTIFACT_DIR}")"
-readonly KERNEL_NAME="rethinking-${ROOT_VARIANT}-${BUILD_DATE}.zip"
+readonly KERNEL_NAME="Avalanche-${ROOT_VARIANT}-${BUILD_DATE}.zip"
 readonly OUTPUT_ZIP="${ARTIFACT_DIR}/${KERNEL_NAME}"
 
 setup_toolchain() {
