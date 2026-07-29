@@ -21,6 +21,7 @@ Only `surya` is currently supported.
 ### Performance and Power
 
 - Schedutil as the default CPU frequency governor.
+- Qualcomm WALT load tracking for task placement and frequency demand.
 - TEO CPU idle governor.
 - Preemptible 250 Hz kernel.
 - Android Power HAL, cpuset, schedtune, thermal, and IRQ policy support.
