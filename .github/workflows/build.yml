@@ -41,6 +41,16 @@ jobs:
         echo "ROOT=${{ matrix.root }}" >> $GITHUB_ENV
         echo "DATE=${{ needs.prepare.outputs.DATE }}" >> $GITHUB_ENV
         echo "ARTIFACT=$GITHUB_WORKSPACE/artifact" >> $GITHUB_ENV
+        echo "CCACHE_MAXSIZE=1G" >> $GITHUB_ENV
+
+    - name: Restore compiler cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ccache
+        key: avalanche-ccache-${{ runner.os }}-clang13289611-${{ matrix.root }}-${{ hashFiles('arch/arm64/configs/surya_defconfig', 'Makefile', 'arch/arm64/Makefile', 'drivers/kernelsu/Makefile') }}-${{ github.sha }}
+        restore-keys: |
+          avalanche-ccache-${{ runner.os }}-clang13289611-${{ matrix.root }}-${{ hashFiles('arch/arm64/configs/surya_defconfig', 'Makefile', 'arch/arm64/Makefile', 'drivers/kernelsu/Makefile') }}-
+          avalanche-ccache-${{ runner.os }}-clang13289611-${{ matrix.root }}-
 
     - name: Building
       run: |
