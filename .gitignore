@@ -129,6 +129,7 @@ kernel/configs/android-*.cfg
 out/
 /artifacts/
 /AGENTS.md
+/NEXT_STEPS.md
 
 # Ignore personal files
 android/
