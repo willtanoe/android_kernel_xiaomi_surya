@@ -77,7 +77,7 @@ Back up the current boot image and keep a known-good kernel before flashing.
   contributors.
 - [backslashxx/KernelSU](https://github.com/backslashxx/KernelSU) and the
   KernelSU community.
-- [kylieeXD/AK3-Surya](https://github.com/kylieeXD/AK3-Surya) for the AnyKernel
+- [Cilok-LAB/AK3-Surya](https://github.com/Cilok-LAB/AK3-Surya) for the AnyKernel
   packaging base.
 - [Impqxr/aosp_clang_ci](https://github.com/Impqxr/aosp_clang_ci) for the AOSP
   Clang distribution.

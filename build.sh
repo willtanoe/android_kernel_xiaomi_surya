@@ -9,8 +9,9 @@ readonly CLANG_ARCHIVE="clang-13289611-linux-x86.tar.xz"
 readonly CLANG_URL="https://github.com/Impqxr/aosp_clang_ci/releases/download/13289611/${CLANG_ARCHIVE}"
 readonly CLANG_SHA256="0a1fbf7f990122a63a2f8b9d6ddce458bebfb1bbe1c9efe8f1b58a2a3814ae7c"
 readonly CLANG_BINARY_SHA256="2dc97e5225642abce70b8b077f7fae70b8006d53d9659008b5eb916814bf2ceb"
-readonly ANYKERNEL_URL="https://github.com/kylieeXD/AK3-Surya.git"
+readonly ANYKERNEL_URL="https://github.com/Cilok-LAB/AK3-Surya.git"
 readonly ANYKERNEL_COMMIT="b5ce992ec2e2f85eaa3b0724fd6b63d8e4dc1352"
+readonly ANYKERNEL_BANNER="packaging/banner"
 
 ROOT_VARIANT="${1:-}"
 BUILD_DATE="${2:-$(TZ=Asia/Jakarta date +%Y%m%d%H%M)}"
@@ -115,6 +116,25 @@ package_kernel() {
 	git -C out/anykernel remote add origin "${ANYKERNEL_URL}"
 	git -C out/anykernel fetch --quiet --depth=1 origin "${ANYKERNEL_COMMIT}"
 	git -C out/anykernel checkout --quiet --detach FETCH_HEAD
+
+	grep -qx 'kernel.string=OSS Kernel | POCO X3 NFC' out/anykernel/anykernel.sh || {
+		echo "Unexpected AnyKernel metadata; refusing an unreviewed package" >&2
+		exit 1
+	}
+	sed -i "s#^kernel.string=.*#kernel.string=Avalanche ${ROOT_VARIANT} | POCO X3 NFC#" \
+		out/anykernel/anykernel.sh
+	sed -i '/^device\.name2=karna$/d' out/anykernel/anykernel.sh
+	cp "${ANYKERNEL_BANNER}" out/anykernel/banner
+	cp README.md out/anykernel/README.md
+
+	if grep -IRniE 'rethinking|khayloaf|CilokG|OSS Kernel' out/anykernel; then
+		echo "Legacy AnyKernel branding remains in the package" >&2
+		exit 1
+	fi
+	if grep -q '^device\.name[0-9]=karna$' out/anykernel/anykernel.sh; then
+		echo "Unsupported karna target remains in the package" >&2
+		exit 1
+	fi
 
 	cp "${KERNEL_PATH}/dtb.img" out/anykernel/kernels/
 	cp "${KERNEL_PATH}/dtbo.img" out/anykernel/kernels/

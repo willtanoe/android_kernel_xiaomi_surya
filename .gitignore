@@ -127,6 +127,7 @@ kernel/configs/android-*.cfg
 
 # Object directory
 out/
+/artifacts/
 
 # Ignore personal files
 android/
