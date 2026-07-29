@@ -1,4 +1,4 @@
-name: Build Kernel and Release
+name: Avalanche Build and Release
 
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
           echo "DATE=$(TZ=Asia/Jakarta date +%Y%m%d%H%M)" >> $GITHUB_OUTPUT
 
   build_kernel:
-    name: Build Kernel and Release
+    name: Build Avalanche (${{ matrix.root }})
     runs-on: ubuntu-latest
     needs: prepare
     strategy:
