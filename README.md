@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/avalanche-banner.png" alt="Avalanche Kernel banner" width="100%">
+</p>
+
 # Avalanche Kernel
 
 Avalanche is a custom Android kernel for the **Xiaomi POCO X3 NFC (`surya`)**,
