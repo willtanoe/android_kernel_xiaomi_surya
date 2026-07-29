@@ -83,7 +83,7 @@ jobs:
 
       - name: Set DATE and TAG
         run: |
-          echo "TAG=Avalanche-${{ needs.prepare.outputs.DATE }}-${GITHUB_SHA:0:8}" >> $GITHUB_ENV
+          echo "TAG=Avalanche-${{ needs.prepare.outputs.DATE }}" >> $GITHUB_ENV
 
       - name: Download all artifacts
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
