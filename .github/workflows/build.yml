@@ -92,7 +92,8 @@ jobs:
           merge-multiple: true
 
       - name: Generate checksums
-        run: sha256sum artifact/*.zip > artifact/SHA256SUMS
+        working-directory: artifact
+        run: sha256sum *.zip > SHA256SUMS
 
       - name: Create Git tag
         run: |
