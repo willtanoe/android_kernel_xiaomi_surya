@@ -63,18 +63,10 @@ Only `surya` is currently supported.
 
 Use `NoKSU` if kernel-level root access is not needed.
 
-## Build
+## Installation
 
-```bash
-# KernelSU variant
-./build.sh KSU
-
-# Kernel without KernelSU
-./build.sh NoKSU
-```
-
-The build script uses the pinned AOSP Clang toolchain and creates flashable ZIP
-files in `artifacts/`.
+Choose the KSU or NoKSU ZIP, then flash it using a compatible custom recovery.
+Back up the current boot image and keep a known-good kernel before flashing.
 
 ## Credits
 
