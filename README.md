@@ -1,8 +1,18 @@
 # Avalanche Kernel
 
-Avalanche is a custom Android kernel for the **POCO X3 NFC (`surya`)** based on
-Linux 4.14.357 OpenELA. It is a continuation of the
-[Cilok-LAB POCO X3 NFC kernel](https://github.com/Cilok-LAB/android_kernel_xiaomi_surya).
+Avalanche is a custom Android kernel for the **Xiaomi POCO X3 NFC (`surya`)**,
+built on the OpenELA-maintained Linux 4.14.357 kernel. Avalanche originated from
+the [Cilok-LAB POCO X3 NFC kernel](https://github.com/Cilok-LAB/android_kernel_xiaomi_surya)
+and is now maintained independently.
+
+## Philosophy
+
+Avalanche prioritizes stability, reproducibility, and upstream correctness over
+benchmark-oriented tuning.
+
+The project intentionally avoids aggressive compiler flags, artificial CPU
+boosting, overclocking, and other modifications that cannot be justified through
+measurable improvements or long-term maintainability.
 
 ## Device
 
@@ -52,7 +62,7 @@ Only `surya` is currently supported.
 - Randomized and hardened SLUB freelists.
 - Kernel address randomization and strict memory permissions.
 - Hardened usercopy, seccomp, and SELinux.
-- Kernel BUG/WARN diagnostics and stack-frame build warnings.
+- Kernel diagnostics, debugging safeguards, and stack-frame build warnings.
 - Reproducible toolchain and AnyKernel checksums.
 
 ## Variants
@@ -72,7 +82,7 @@ Back up the current boot image and keep a known-good kernel before flashing.
 ## Credits
 
 - [Cilok-LAB/android_kernel_xiaomi_surya](https://github.com/Cilok-LAB/android_kernel_xiaomi_surya)
-  for the original Surya kernel source used by this fork.
+  for the original Surya kernel source from which Avalanche originated.
 - Linux, OpenELA, Android, CodeLinaro/Qualcomm, Xiaomi, and POCO kernel
   contributors.
 - [backslashxx/KernelSU](https://github.com/backslashxx/KernelSU) and the
