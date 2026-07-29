@@ -5,9 +5,11 @@
 # Avalanche Kernel
 
 Avalanche is a custom Android kernel for the **Xiaomi POCO X3 NFC (`surya`)**,
-built on the OpenELA-maintained Linux 4.14.357 kernel. Avalanche originated from
-the [Cilok-LAB POCO X3 NFC kernel](https://github.com/Cilok-LAB/android_kernel_xiaomi_surya)
-and is now maintained independently.
+built on the OpenELA-maintained Linux 4.14.357 kernel and using the
+[Cilok-LAB POCO X3 NFC kernel](https://github.com/Cilok-LAB/android_kernel_xiaomi_surya)
+source as its device-specific baseline. Avalanche is developed and maintained
+independently, with credit to Cilok-LAB and previous contributors for the
+inherited Surya support.
 
 ## Philosophy
 
