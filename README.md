@@ -76,15 +76,6 @@ Use `NoKSU` if kernel-level root access is not needed.
 The build script uses the pinned AOSP Clang toolchain and creates flashable ZIP
 files in `artifacts/`.
 
-## Installation
-
-Back up the current boot image and keep a known-good kernel before flashing.
-Verify that the device is POCO X3 NFC (`surya`) and select the intended KSU or
-NoKSU package.
-
-Build and CI validation do not replace testing on physical hardware. Boot,
-hardware, battery, thermal, and ROM compatibility must be verified on-device.
-
 ## Credits
 
 - [Cilok-LAB/android_kernel_xiaomi_surya](https://github.com/Cilok-LAB/android_kernel_xiaomi_surya)
