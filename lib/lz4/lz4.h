@@ -298,6 +298,8 @@ LZ4LIB_API int LZ4_compress_fast_extState(void *state, const char *src,
  * *srcSizePtr : in+out parameter. Initially contains size of input.
  *               Will be modified to indicate how many bytes where read from 'src' to fill 'dst'.
  *               New value is necessarily <= input value.
+ * @wrkmem : externally allocated compression state of at least
+ *            LZ4_STREAM_MINSIZE bytes.
  * @return : Nb bytes written into 'dst' (necessarily <= dstCapacity)
  *           or 0 if compression fails.
  *
@@ -313,7 +315,8 @@ LZ4LIB_API int LZ4_compress_fast_extState(void *state, const char *src,
  *        See https://github.com/lz4/lz4/issues/859 for details
  */
 LZ4LIB_API int LZ4_compress_destSize(const char *src, char *dst,
-				     int *srcSizePtr, int targetDstSize);
+				     int *srcSizePtr, int targetDstSize,
+				     void *wrkmem);
 
 /*! LZ4_decompress_safe_partial() :
  *  Decompress an LZ4 compressed block, of size 'srcSize' at position 'src',
