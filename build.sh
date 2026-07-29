@@ -63,6 +63,8 @@ configure_kernel() {
 		scripts/config --file out/.config --disable KSU
 	fi
 	make O=out ARCH=arm64 olddefconfig
+	python3 scripts/check-resolved-defconfig.py "${DEFCONFIG}" out/.config \
+		--variant "${ROOT_VARIANT}"
 }
 
 compile_kernel() {
