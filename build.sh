@@ -45,9 +45,10 @@ require_command() {
 validate_repo_identity() {
 	local origin_url branch
 	origin_url="$(git remote get-url origin 2>/dev/null || true)"
-	if [[ "${origin_url}" != "${EXPECTED_ORIGIN}" ]]; then
-		die "Repository identity mismatch: origin is '${origin_url}', expected '${EXPECTED_ORIGIN}'"
-	fi
+	case "${origin_url}" in
+		"${EXPECTED_ORIGIN}" | "https://github.com/willtanoe/android_kernel_xiaomi_surya" | "https://github.com/willtanoe/android_kernel_xiaomi_surya.git") ;;
+		*) die "Repository identity mismatch: origin is '${origin_url}', expected '${EXPECTED_ORIGIN}' or its HTTPS equivalent" ;;
+	esac
 
 	branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 	if [[ "${branch}" != "${EXPECTED_BRANCH}" ]]; then
