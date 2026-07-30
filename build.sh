@@ -181,6 +181,109 @@ validate_boot_artifacts() {
 		--dtbo "${KERNEL_PATH}/dtbo.img"
 }
 
+kernel_release() {
+	# Extract the release string that the kernel would report via uname -r.
+	# make kernelversion returns the base; CONFIG_LOCALVERSION adds the suffix.
+	local base
+	base="$(make -s O=out ARCH=arm64 kernelversion)"
+	if [[ -f out/include/config/kernel.release ]]; then
+		cat out/include/config/kernel.release
+	else
+		echo "${base}"
+	fi
+}
+
+generate_manifest() {
+	local source_sha source_dirty kernel_rel defconfig_hash resolved_hash
+	local system_map_hash image_hash image_gz_hash dtb_hash dtbo_hash
+	local manifest_path="${1}"
+
+	source_sha="$(git rev-parse HEAD)"
+	if git diff-index --quiet --cached HEAD -- 2>/dev/null && \
+	   git diff-index --quiet HEAD -- 2>/dev/null; then
+		source_dirty="false"
+	else
+		source_dirty="true"
+	fi
+
+	kernel_rel="$(kernel_release)"
+	defconfig_hash="$(sha256sum "${DEFCONFIG}" | cut -d' ' -f1)"
+	resolved_hash="$(sha256sum out/.config | cut -d' ' -f1)"
+	system_map_hash="$(sha256sum out/System.map | cut -d' ' -f1)"
+	image_hash="$(sha256sum "${KERNEL_PATH}/Image" | cut -d' ' -f1)"
+	image_gz_hash="$(sha256sum "${KERNEL_PATH}/Image.gz" | cut -d' ' -f1)"
+	dtb_hash="$(sha256sum "${KERNEL_PATH}/dtb.img" | cut -d' ' -f1)"
+	dtbo_hash="$(sha256sum "${KERNEL_PATH}/dtbo.img" | cut -d' ' -f1)"
+
+	# Write a deterministic, host-path-free manifest.
+	cat >"${manifest_path}" <<EOF
+project=Avalanche
+device=surya
+variant=${ROOT_VARIANT}
+source_sha=${source_sha}
+source_dirty=${source_dirty}
+kernel_release=${kernel_rel}
+source_epoch=${SOURCE_DATE_EPOCH}
+build_date=${BUILD_DATE}
+clang_build=13289611
+clang_archive_sha256=${CLANG_SHA256}
+clang_binary_sha256=${CLANG_BINARY_SHA256}
+anykernel_url=${ANYKERNEL_URL}
+anykernel_commit=${ANYKERNEL_COMMIT}
+defconfig_hash=${defconfig_hash}
+resolved_config_hash=${resolved_hash}
+system_map_hash=${system_map_hash}
+image_hash=${image_hash}
+image_gz_hash=${image_gz_hash}
+dtb_hash=${dtb_hash}
+dtbo_hash=${dtbo_hash}
+EOF
+}
+
+validate_manifest() {
+	local zip_path="${1}"
+	local manifest
+	manifest="$(unzip -p "${zip_path}" manifest.txt)"
+	if [[ -z "${manifest}" ]]; then
+		die "Manifest is missing or empty in ${zip_path}"
+	fi
+
+	local value
+	value="$(echo "${manifest}" | grep '^variant=' | cut -d'=' -f2-)"
+	if [[ "${value}" != "${ROOT_VARIANT}" ]]; then
+		die "Manifest variant mismatch: ${value} != ${ROOT_VARIANT}"
+	fi
+
+	value="$(echo "${manifest}" | grep '^source_dirty=' | cut -d'=' -f2-)"
+	if [[ "${value}" != "true" && "${value}" != "false" ]]; then
+		die "Manifest has invalid source_dirty value: ${value}"
+	fi
+
+	# Verify payload hashes inside the manifest match the build outputs.
+	local key file expected actual
+	for key in image_hash image_gz_hash dtb_hash dtbo_hash; do
+		case "${key}" in
+			image_hash) file="Image" ;;
+			image_gz_hash) file="Image.gz" ;;
+			dtb_hash) file="dtb.img" ;;
+			dtbo_hash) file="dtbo.img" ;;
+		esac
+		expected="$(echo "${manifest}" | grep "^${key}=" | cut -d'=' -f2-)"
+		actual="$(sha256sum "${KERNEL_PATH}/${file}" | cut -d' ' -f1)"
+		if [[ "${expected}" != "${actual}" ]]; then
+			die "Manifest ${key} mismatch for ${file}"
+		fi
+	done
+
+	# Verify the manifest's own hash of System.map.
+	local expected_system_map actual_system_map
+	expected_system_map="$(echo "${manifest}" | grep '^system_map_hash=' | cut -d'=' -f2-)"
+	actual_system_map="$(sha256sum out/System.map | cut -d' ' -f1)"
+	if [[ "${expected_system_map}" != "${actual_system_map}" ]]; then
+		die "Manifest system_map_hash mismatch"
+	fi
+}
+
 package_kernel() {
 	local file
 	for file in Image Image.gz dtb.img dtbo.img; do
@@ -221,6 +324,9 @@ package_kernel() {
 	cp "${KERNEL_PATH}/dtb.img" out/anykernel/kernels/
 	cp "${KERNEL_PATH}/dtbo.img" out/anykernel/kernels/
 	cp "${KERNEL_PATH}/Image.gz" out/anykernel/kernels/
+
+	generate_manifest out/anykernel/manifest.txt
+
 	rm -rf out/anykernel/.git
 	rm -f "${OUTPUT_ZIP}"
 	(
@@ -236,7 +342,9 @@ package_kernel() {
 		--dtb "${KERNEL_PATH}/dtb.img" \
 		--dtbo "${KERNEL_PATH}/dtbo.img" \
 		--zip "${OUTPUT_ZIP}" \
-		--expected-zip-members "kernels/Image.gz,kernels/dtb.img,kernels/dtbo.img,anykernel.sh,banner,README.md"
+		--expected-zip-members "kernels/Image.gz,kernels/dtb.img,kernels/dtbo.img,anykernel.sh,banner,README.md,manifest.txt"
+
+	validate_manifest "${OUTPUT_ZIP}"
 }
 
 main() {
