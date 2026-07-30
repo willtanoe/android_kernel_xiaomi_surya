@@ -3,7 +3,10 @@ set -euo pipefail
 
 SECONDS=0
 
-readonly KERNEL_PATH="out/arch/arm64/boot"
+# Anchor to this script's repository root, not the caller's working directory.
+REPO_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+cd "${REPO_ROOT}"
+
 readonly DEFCONFIG="arch/arm64/configs/surya_defconfig"
 readonly CLANG_ARCHIVE="clang-13289611-linux-x86.tar.xz"
 readonly CLANG_URL="https://github.com/Impqxr/aosp_clang_ci/releases/download/13289611/${CLANG_ARCHIVE}"
@@ -12,24 +15,90 @@ readonly CLANG_BINARY_SHA256="2dc97e5225642abce70b8b077f7fae70b8006d53d9659008b5
 readonly ANYKERNEL_URL="https://github.com/Cilok-LAB/AK3-Surya.git"
 readonly ANYKERNEL_COMMIT="b5ce992ec2e2f85eaa3b0724fd6b63d8e4dc1352"
 readonly ANYKERNEL_BANNER="packaging/banner"
+readonly EXPECTED_ORIGIN="git@github.com:willtanoe/android_kernel_xiaomi_surya.git"
+readonly EXPECTED_BRANCH="avalanche"
 
 ROOT_VARIANT="${1:-}"
 BUILD_DATE="${2:-$(TZ=Asia/Jakarta date +%Y%m%d%H%M)}"
-ARTIFACT_DIR="${3:-${PWD}/artifacts}"
+ARTIFACT_DIR="${3:-${REPO_ROOT}/artifacts}"
 BUILD_JOBS="${BUILD_JOBS:-$(nproc --all)}"
 
-case "${ROOT_VARIANT}" in
-	KSU | NoKSU) ;;
-	*)
-		echo "Usage: $0 <KSU|NoKSU> [build-date] [artifact-directory]" >&2
-		exit 2
-		;;
-esac
-
-mkdir -p "${ARTIFACT_DIR}"
-ARTIFACT_DIR="$(realpath "${ARTIFACT_DIR}")"
+readonly KERNEL_PATH="${REPO_ROOT}/out/arch/arm64/boot"
 readonly KERNEL_NAME="Avalanche-${ROOT_VARIANT}-${BUILD_DATE}.zip"
-readonly OUTPUT_ZIP="${ARTIFACT_DIR}/${KERNEL_NAME}"
+
+error() {
+	echo "$*" >&2
+}
+
+die() {
+	error "$*"
+	exit 1
+}
+
+require_command() {
+	local cmd
+	for cmd; do
+		command -v "${cmd}" >/dev/null 2>&1 || die "Required tool not found: ${cmd}"
+	done
+}
+
+validate_repo_identity() {
+	local origin_url branch
+	origin_url="$(git remote get-url origin 2>/dev/null || true)"
+	if [[ "${origin_url}" != "${EXPECTED_ORIGIN}" ]]; then
+		die "Repository identity mismatch: origin is '${origin_url}', expected '${EXPECTED_ORIGIN}'"
+	fi
+
+	branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+	if [[ "${branch}" != "${EXPECTED_BRANCH}" ]]; then
+		die "Branch mismatch: currently on '${branch}', expected '${EXPECTED_BRANCH}'"
+	fi
+}
+
+validate_inputs() {
+	if [[ $# -lt 1 || $# -gt 3 ]]; then
+		die "Usage: $0 <KSU|NoKSU> [build-date] [artifact-directory]"
+	fi
+
+	case "${ROOT_VARIANT}" in
+		KSU | NoKSU) ;;
+		*) die "Invalid variant '${ROOT_VARIANT}'. Use KSU or NoKSU." ;;
+	esac
+
+	if [[ -z "${BUILD_DATE}" || ! "${BUILD_DATE}" =~ ^[0-9]{12}$ ]]; then
+		die "Invalid build date '${BUILD_DATE}'. Expected 12-digit YYYYMMDDHHMM."
+	fi
+
+	# Validate that the date is calendar-plausible (date will fail on e.g. 202613011200).
+	TZ=Asia/Jakarta date -d "${BUILD_DATE:0:4}-${BUILD_DATE:4:2}-${BUILD_DATE:6:2} ${BUILD_DATE:8:2}:${BUILD_DATE:10:2}" >/dev/null \
+		|| die "Invalid build date '${BUILD_DATE}': not a real calendar date."
+
+	if [[ -z "${BUILD_JOBS}" || ! "${BUILD_JOBS}" =~ ^[1-9][0-9]*$ ]]; then
+		die "Invalid BUILD_JOBS '${BUILD_JOBS}'. Expected a positive integer."
+	fi
+
+	# Resolve artifact directory before any destructive work. Reject placing
+	# artifacts inside the volatile out/ tree so a later rm -rf out does not
+	# delete published packages.
+	mkdir -p "${ARTIFACT_DIR}"
+	ARTIFACT_DIR="$(realpath "${ARTIFACT_DIR}")"
+	if [[ "${ARTIFACT_DIR}" == "${REPO_ROOT}/out"* ]]; then
+		die "Artifact directory must not be inside ${REPO_ROOT}/out"
+	fi
+	readonly OUTPUT_ZIP="${ARTIFACT_DIR}/${KERNEL_NAME}"
+
+	validate_repo_identity
+
+	if [[ ! -f "${DEFCONFIG}" ]]; then
+		die "Missing defconfig: ${DEFCONFIG}"
+	fi
+	if [[ ! -f "${ANYKERNEL_BANNER}" ]]; then
+		die "Missing packaging banner: ${ANYKERNEL_BANNER}"
+	fi
+	if [[ ! -f "README.md" ]]; then
+		die "Missing README.md"
+	fi
+}
 
 setup_toolchain() {
 	if [[ -x clang/bin/clang ]]; then
@@ -68,7 +137,7 @@ configure_kernel() {
 }
 
 compile_kernel() {
-	export PATH="${PWD}/clang/bin:${PATH}"
+	export PATH="${REPO_ROOT}/clang/bin:${PATH}"
 	export CCACHE_DIR="${CCACHE_DIR:-${HOME}/.cache/ccache}"
 	export KBUILD_BUILD_HOST="builder"
 	export KBUILD_BUILD_USER="willtanoe"
@@ -150,6 +219,8 @@ package_kernel() {
 }
 
 main() {
+	require_command make python3 git zip wget sha256sum ccache realpath nproc date
+	validate_inputs "$@"
 	setup_toolchain
 	compile_kernel
 	validate_variant
@@ -161,4 +232,4 @@ main() {
 }
 
 rm -f compile.log
-main 2>&1 | tee compile.log
+main "$@" 2>&1 | tee compile.log
