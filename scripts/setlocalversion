@@ -47,9 +47,6 @@ scm_version()
 	if test -z "$(git rev-parse --show-cdup 2>/dev/null)" &&
 	   head=$(git rev-parse --verify HEAD 2>/dev/null); then
 
-		printf '%s' "/$(echo $head | cut -c1-8)"
-		return
-
 		# If we are at a tagged commit (like "v2.6.30-rc6"), we ignore
 		# it, because this version is defined in the top level Makefile.
 		if [ -z "`git describe --exact-match 2>/dev/null`" ]; then
@@ -80,11 +77,23 @@ scm_version()
 				head="$(echo $head | cut -c1-12)"
 				printf '%s%s' -g $head
 			fi
+		else
+			# On a tagged commit the pretty-printed distance is skipped,
+			# but we still want the short SHA form used by this project.
+			head="$(echo $head | cut -c1-8)"
+			printf '%s' "/$head"
 		fi
 
 		# Is this git on svn?
 		if git config --get svn-remote.svn.url >/dev/null; then
 			printf -- '-svn%s' "`git svn find-rev $head`"
+		fi
+
+		# Are there staged or unstaged changes to tracked files?
+		# Untracked and ignored files (build output) must not affect this.
+		if ! git diff-index --quiet --cached HEAD -- 2>/dev/null ||
+		   ! git diff-index --quiet HEAD -- 2>/dev/null; then
+			printf '%s' -dirty
 		fi
 
 		# All done with git
