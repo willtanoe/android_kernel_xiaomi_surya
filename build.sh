@@ -173,6 +173,14 @@ validate_variant() {
 	fi
 }
 
+validate_boot_artifacts() {
+	python3 "${REPO_ROOT}/scripts/validate-boot-artifacts.py" \
+		--image "${KERNEL_PATH}/Image" \
+		--image-gz "${KERNEL_PATH}/Image.gz" \
+		--dtb "${KERNEL_PATH}/dtb.img" \
+		--dtbo "${KERNEL_PATH}/dtbo.img"
+}
+
 package_kernel() {
 	local file
 	for file in Image Image.gz dtb.img dtbo.img; do
@@ -181,6 +189,8 @@ package_kernel() {
 			exit 1
 		fi
 	done
+
+	validate_boot_artifacts
 
 	rm -rf out/anykernel
 	mkdir -p out/anykernel
@@ -217,6 +227,16 @@ package_kernel() {
 		cd out/anykernel
 		zip -qr9 "${OUTPUT_ZIP}" .
 	)
+
+	# Validate the packaged ZIP: exact members, no traversal/duplicates,
+	# structurally valid, and kernel payloads match the validated build outputs.
+	python3 "${REPO_ROOT}/scripts/validate-boot-artifacts.py" \
+		--image "${KERNEL_PATH}/Image" \
+		--image-gz "${KERNEL_PATH}/Image.gz" \
+		--dtb "${KERNEL_PATH}/dtb.img" \
+		--dtbo "${KERNEL_PATH}/dtbo.img" \
+		--zip "${OUTPUT_ZIP}" \
+		--expected-zip-members "kernels/Image.gz,kernels/dtb.img,kernels/dtbo.img,anykernel.sh,banner,README.md"
 }
 
 main() {
